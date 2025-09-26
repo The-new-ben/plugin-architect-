@@ -5,7 +5,7 @@ class CAI_AI {
 
     public static function chat($prompt, $system='You are an expert SEO and information architect.', $max_tokens=400){
         $opt = get_option('cai_settings', []);
-        $api_key = defined('CAI_OPENAI_API_KEY') && CAI_OPENAI_API_KEY ? CAI_OPENAI_API_KEY : ($opt['openai_api_key'] ?? '');
+        $api_key = cai_get_openai_api_key();
         $model   = $opt['chat_model'] ?? 'gpt-4o-mini';
         if (empty($api_key)) return '';
 
@@ -40,7 +40,7 @@ class CAI_AI {
 
     public static function embedding($text){
         $opt = get_option('cai_settings', []);
-        $api_key = defined('CAI_OPENAI_API_KEY') && CAI_OPENAI_API_KEY ? CAI_OPENAI_API_KEY : ($opt['openai_api_key'] ?? '');
+        $api_key = cai_get_openai_api_key();
         $model   = $opt['embedding_model'] ?? 'text-embedding-3-small';
         if (empty($api_key)) return [];
 
@@ -81,7 +81,7 @@ class CAI_AI {
 
     public static function test(){
         $opt = get_option('cai_settings', []);
-        $api_key = defined('CAI_OPENAI_API_KEY') && CAI_OPENAI_API_KEY ? CAI_OPENAI_API_KEY : ($opt['openai_api_key'] ?? '');
+        $api_key = cai_get_openai_api_key();
         $model   = $opt['chat_model'] ?? 'gpt-4o-mini';
         if (empty($api_key)) return new WP_Error('missing_key','OpenAI API key missing');
 

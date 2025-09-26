@@ -15,7 +15,24 @@ define('CAI_VERSION', '1.0.0');
 define('CAI_PLUGIN_FILE', __FILE__);
 define('CAI_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('CAI_PLUGIN_URL', plugin_dir_url(__FILE__));
-if (!defined('CAI_OPENAI_API_KEY')) define('CAI_OPENAI_API_KEY', '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');
+
+if (!function_exists('cai_get_openai_api_key')) {
+    function cai_get_openai_api_key() {
+        static $cached_key = null;
+        if ($cached_key !== null) {
+            return $cached_key;
+        }
+        $key = '';
+        if (defined('CAI_OPENAI_API_KEY') && CAI_OPENAI_API_KEY) {
+            $key = CAI_OPENAI_API_KEY;
+        } else {
+            $options = get_option('cai_settings', []);
+            $key = isset($options['openai_api_key']) ? trim($options['openai_api_key']) : '';
+        }
+        $cached_key = apply_filters('cai_openai_api_key', $key);
+        return $cached_key;
+    }
+}
 
 // Simple PSR-4-like loader
 spl_autoload_register(function($class){

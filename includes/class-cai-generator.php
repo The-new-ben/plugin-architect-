@@ -83,6 +83,39 @@ class CAI_Generator {
         }, self::OPTION, 'gen_cron');
     }
 
+    public function save_sources(){
+        if (!current_user_can('manage_options')){
+            wp_safe_redirect(admin_url('admin.php?page=cai-generation'));
+            exit;
+        }
+
+        $opt = get_option(self::OPTION, []);
+        if (!is_array($opt)){
+            $opt = [];
+        }
+
+        $value = $_POST[self::OPTION]['sources'] ?? '';
+        if (is_array($value)){
+            $value = implode("\n", $value);
+        }
+        $value = wp_unslash($value);
+
+        $sources = preg_split("/\r?\n/", (string) $value);
+        if (!is_array($sources)){
+            $sources = [];
+        }
+
+        $sources = array_filter(array_map('trim', $sources), function($url){
+            return $url !== '';
+        });
+
+        $opt['sources'] = array_values($sources);
+        update_option(self::OPTION, $opt);
+
+        wp_safe_redirect(admin_url('admin.php?page=cai-generation'));
+        exit;
+    }
+
     public function cron_schedules($schedules){
         if (!isset($schedules['twicedaily'])){
             $schedules['twicedaily'] = ['interval'=>12*3600, 'display'=>__('Twice Daily')];
@@ -333,6 +366,16 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
     private function discover_topics_from_sources(){
         $opt = get_option(self::OPTION, []);
         $sources = $opt['sources'] ?? [];
+        if (!is_array($sources)){
+            if (is_string($sources)){
+                $sources = preg_split("/\r?\n/", $sources);
+            } else {
+                $sources = [];
+            }
+        }
+        $sources = array_filter(array_map('trim', $sources), function($url){
+            return $url !== '';
+        });
         if (empty($sources)) return [];
 
         $items = [];

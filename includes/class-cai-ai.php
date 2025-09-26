@@ -78,8 +78,6 @@ class CAI_AI {
         if ($na == 0 || $nb == 0) return 0.0;
         return $dot / (sqrt($na)*sqrt($nb));
     }
-}
-
 
     public static function test(){
         $opt = get_option('cai_settings', []);
@@ -113,3 +111,4 @@ class CAI_AI {
         }
         return new WP_Error('api_error', 'Bad response from OpenAI');
     }
+}

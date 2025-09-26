@@ -164,10 +164,27 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
         $prompt = 'אתה אדריכל מידע ו-SEO. נתח את נתוני האתר הבאים והצע ארכיטקטורת תוכן תואמת שוק בעברית: '
                 . wp_json_encode($site, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)
                 . ' החזר JSON בלבד במבנה: { "clusters":[{"name":"","description":"","keywords":[""],"ideas":[{"title":"","slug":"","target_keyword":"","summary":""}]}], "categories":["",""] }';
-        $json = CAI_AI::chat($prompt, 'Return compact JSON only. Language: Hebrew.', 600);
-        if (!$json) wp_send_json_error('no ai');
-        set_transient('cai_architecture_plan', $json, 12*HOUR_IN_SECONDS);
-        wp_send_json_success(['plan'=>$json]);
+        $json = CAI_AI::chat($prompt, 'Return compact JSON only. Language: Hebrew.', 600, true);
+        if (is_wp_error($json)){
+            wp_send_json_error($json->get_error_message());
+        }
+
+        $parsed = CAI_AI::parse_json_response($json);
+        if (is_wp_error($parsed)){
+            $data = $parsed->get_error_data();
+            wp_send_json_error([
+                'message' => $parsed->get_error_message(),
+                'raw'     => $data['raw'] ?? $json,
+            ]);
+        }
+
+        $plan = $parsed['data'];
+        if (!is_array($plan) || empty($plan['clusters'])){
+            wp_send_json_error('bad ai plan');
+        }
+
+        set_transient('cai_architecture_plan', $parsed['raw'], 12*HOUR_IN_SECONDS);
+        wp_send_json_success(['plan'=>$parsed['raw']]);
     }
 
     private function get_menus_snapshot(){
@@ -300,8 +317,13 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
                 .($target_kw ? ' מילת יעד מועדפת: '.sanitize_text_field($target_kw) : '')
                 .' כתוב בעברית תקינה, טון מקצועי, בלי סלנג, ושמור על אורך 800-1400 מילים.';
 
-        $json = CAI_AI::chat($prompt, 'Return valid JSON only. Language: Hebrew.', 1200);
-        $data = json_decode($json, true);
+        $json = CAI_AI::chat($prompt, 'Return valid JSON only. Language: Hebrew.', 1200, true);
+        if (is_wp_error($json)) return 0;
+
+        $parsed = CAI_AI::parse_json_response($json);
+        if (is_wp_error($parsed)) return 0;
+
+        $data = $parsed['data'];
         if (!is_array($data) || empty($data['content_html'])) return 0;
 
         $title = sanitize_text_field($data['title'] ?: $topic);
@@ -396,8 +418,13 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
         $prompt = 'קבל רשימת כותרות/תקצירים והחזר עד 10 רעיונות לפוסטים ייחודיים בעברית המתאימים לאתר, כולל שיוך לאשכול מתאים אם אפשר. '
                 .'פורמט JSON בלבד: [{"title":"","summary":"","cluster":""}]'
                 .' נתונים: ' . wp_json_encode($items, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-        $json = CAI_AI::chat($prompt, 'Return JSON array only. Language: Hebrew.', 800);
-        $arr = json_decode($json, true);
+        $json = CAI_AI::chat($prompt, 'Return JSON array only. Language: Hebrew.', 800, true);
+        if (is_wp_error($json)) return [];
+
+        $parsed = CAI_AI::parse_json_response($json);
+        if (is_wp_error($parsed)) return [];
+
+        $arr = $parsed['data'];
         return is_array($arr) ? $arr : [];
     }
 }

@@ -58,8 +58,6 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
         $res = $this->reindex_all();
         wp_send_json_success($res);
     }
-}
-
 
     public function ajax_test_ai(){
         check_ajax_referer('cai-admin','nonce');
@@ -68,3 +66,4 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
         if (is_wp_error($res)) wp_send_json_error($res->get_error_message());
         wp_send_json_success(['ok'=>$res]);
     }
+}

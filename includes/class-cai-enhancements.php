@@ -111,7 +111,9 @@ class CAI_Enhancements {
         if (!is_singular()) return '';
         global $post;
         $wpm = 200;
-        $words = str_word_count( wp_strip_all_tags( $post->post_content ) );
+        $content = wp_strip_all_tags($post->post_content);
+        $tokens = $content === '' ? [] : preg_split('/\s+/u', $content, -1, PREG_SPLIT_NO_EMPTY);
+        $words = is_array($tokens) ? count($tokens) : 0;
         $min = max(1, ceil($words / $wpm));
         return '<span class="cai-reading-time">'.sprintf(esc_html__('%d דקות קריאה','content-architect-ai'), $min).'</span>';
     }

@@ -36,9 +36,41 @@ class CAI_Clustering {
             wp_set_object_terms($post_id, intval($best_term_id), 'topic_cluster', false);
         } else {
             // ask AI to propose a cluster name
+ codex/handle-errors-in-cai_ai-integration
+            $name_response = CAI_AI::chat('Suggest a 2-4 word topic cluster name in Hebrew for this content: '.get_the_title($post_id));
+            if (is_wp_error($name_response)){
+                $details = $name_response->get_error_data();
+                if (!empty($details) && !is_scalar($details)){
+                    $details = wp_json_encode($details);
+                }
+                if (is_string($details)){
+                    $original_details = $details;
+                    if (function_exists('mb_substr')){
+                        $details = mb_substr($original_details, 0, 400);
+                        $length = function_exists('mb_strlen') ? mb_strlen($original_details) : strlen($original_details);
+                        if ($length > 400){
+                            $details .= '…';
+                        }
+                    } else {
+                        $details = substr($original_details, 0, 400);
+                        if (strlen($original_details) > 400){
+                            $details .= '…';
+                        }
+                    }
+                }
+                $message = 'CAI clustering error: '.$name_response->get_error_message();
+                if (!empty($details)){
+                    $message .= ' | '.$details;
+                }
+                error_log($message);
+                $name = 'אשכול חדש';
+            } else {
+                $name = $name_response;
+
             $name = CAI_AI::chat('Suggest a 2-4 word topic cluster name in Hebrew for this content: '.get_the_title($post_id));
             if (is_wp_error($name)){
                 $name = '';
+ main
             }
             $name = sanitize_text_field($name ?: 'אשכול חדש');
             $term = wp_insert_term($name, 'topic_cluster');

@@ -8,7 +8,11 @@ class CAI_AI {
         $api_key = cai_get_openai_api_key();
         $model   = $opt['chat_model'] ?? 'gpt-4o-mini';
         if (empty($api_key)){
+ codex/handle-errors-in-cai_ai-integration
+            return new WP_Error('cai_missing_api_key', __('Missing OpenAI API key.', 'content-architect-ai'));
+
             return new WP_Error('missing_key', 'OpenAI API key missing');
+ main
         }
 
         $endpoint = 'https://api.openai.com/v1/chat/completions';
@@ -40,6 +44,50 @@ class CAI_AI {
         ]);
 
         if (is_wp_error($response)){
+ codex/handle-errors-in-cai_ai-integration
+            return new WP_Error(
+                'cai_http_error',
+                __('Failed to contact OpenAI.', 'content-architect-ai'),
+                [
+                    'error_message' => $response->get_error_message(),
+                ]
+            );
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        $raw_body = wp_remote_retrieve_body($response);
+        $body = json_decode($raw_body, true);
+
+        if ($code >= 200 && $code < 300 && !empty($body['choices'][0]['message']['content'])){
+            return $body['choices'][0]['message']['content'];
+        }
+
+        $body_snippet = '';
+        if (is_string($raw_body)){
+            if (function_exists('mb_substr')){
+                $body_snippet = mb_substr($raw_body, 0, 400);
+                if (function_exists('mb_strlen') && mb_strlen($raw_body) > 400){
+                    $body_snippet .= '…';
+                } elseif (strlen($raw_body) > 400){
+                    $body_snippet .= '…';
+                }
+            } else {
+                $body_snippet = substr($raw_body, 0, 400);
+                if (strlen($raw_body) > 400){
+                    $body_snippet .= '…';
+                }
+            }
+        }
+
+        return new WP_Error(
+            'cai_bad_response',
+            __('Unexpected response from OpenAI.', 'content-architect-ai'),
+            [
+                'status_code' => $code,
+                'body' => $body_snippet,
+            ]
+        );
+
             return $response;
         }
 
@@ -133,6 +181,7 @@ class CAI_AI {
             'data' => $data,
             'raw'  => $normalized,
         ];
+ main
     }
 
     public static function embedding($text){

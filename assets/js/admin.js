@@ -6,7 +6,7 @@ jQuery(function($){
         e.preventDefault();
         const $btn = $(this);
         $btn.prop('disabled', true).text('מנתח...');
-        $.post(caiVars.ajaxurl, { nonce: caiVars.nonce,  action:'cai_analyze_site' }, function(resp){
+        $.post(caiVars.ajaxurl, { nonce: caiVars.nonce, action:'cai_analyze_site' }, function(resp){
             if(resp && resp.success && resp.data && resp.data.plan){
                 $('#cai-plan').val(resp.data.plan);
             } else {
@@ -21,7 +21,7 @@ jQuery(function($){
         const plan = $('#cai-plan').val();
         const $btn = $(this);
         $btn.prop('disabled', true).text('מיישם...');
-        $.post(caiVars.ajaxurl, { nonce: caiVars.nonce,  action:'cai_apply_arch', plan: plan }, function(resp){
+        $.post(caiVars.ajaxurl, { nonce: caiVars.nonce, action:'cai_apply_arch', plan: plan }, function(resp){
             if(resp && resp.success){
                 alert('נוצרו/עודכנו אשכולות/קטגוריות: ' + JSON.stringify(resp.data.created));
             }else{
@@ -37,7 +37,7 @@ jQuery(function($){
         const $btn = $(this);
         $btn.prop('disabled', true).text('יוצר...');
         $('#cai-generate-log').prepend('<div>הפעלה התחילה...</div>');
-        $.post(caiVars.ajaxurl, { nonce: caiVars.nonce,  action:'cai_generate_now', ppc: ppc }, function(resp){
+        $.post(caiVars.ajaxurl, { nonce: caiVars.nonce, action:'cai_generate_now', ppc: ppc }, function(resp){
             if(resp && resp.success){
                 $('#cai-generate-log').prepend('<div>נוצרו ' + resp.data.created + ' פוסטים: ' + (resp.data.ids||[]).join(', ') + '</div>');
             } else {
@@ -53,7 +53,7 @@ jQuery(function($){
         if(!topic){ alert('נא להזין נושא'); return; }
         const $btn = $(this);
         $btn.prop('disabled', true).text('יוצר...');
-        $.post(caiVars.ajaxurl, { nonce: caiVars.nonce,  action:'cai_generate_from_topic', topic: topic }, function(resp){
+        $.post(caiVars.ajaxurl, { nonce: caiVars.nonce, action:'cai_generate_from_topic', topic: topic }, function(resp){
             if(resp && resp.success){
                 $('#cai-generate-log').prepend('<div>נוצר פוסט #' + resp.data.post_id + '</div>');
             } else {

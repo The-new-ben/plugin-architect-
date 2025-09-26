@@ -37,6 +37,9 @@ class CAI_Clustering {
         } else {
             // ask AI to propose a cluster name
             $name = CAI_AI::chat('Suggest a 2-4 word topic cluster name in Hebrew for this content: '.get_the_title($post_id));
+            if (is_wp_error($name)){
+                $name = '';
+            }
             $name = sanitize_text_field($name ?: 'אשכול חדש');
             $term = wp_insert_term($name, 'topic_cluster');
             if (!is_wp_error($term)){

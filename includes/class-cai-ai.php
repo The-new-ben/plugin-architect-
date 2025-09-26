@@ -3,12 +3,16 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class CAI_AI {
 
-    public static function chat($prompt, $system='You are an expert SEO and information architect.', $max_tokens=400){
+    public static function chat($prompt, $system='You are an expert SEO and information architect.', $max_tokens=400, $expect_json=false){
         $opt = get_option('cai_settings', []);
         $api_key = cai_get_openai_api_key();
         $model   = $opt['chat_model'] ?? 'gpt-4o-mini';
         if (empty($api_key)){
+ codex/handle-errors-in-cai_ai-integration
             return new WP_Error('cai_missing_api_key', __('Missing OpenAI API key.', 'content-architect-ai'));
+
+            return new WP_Error('missing_key', 'OpenAI API key missing');
+ main
         }
 
         $endpoint = 'https://api.openai.com/v1/chat/completions';
@@ -22,6 +26,14 @@ class CAI_AI {
             'max_tokens' => $max_tokens
         ];
 
+        if ($expect_json){
+            if (is_array($expect_json)){
+                $body['response_format'] = $expect_json;
+            } else {
+                $body['response_format'] = ['type' => 'json_object'];
+            }
+        }
+
         $response = wp_remote_post($endpoint, [
             'headers' => [
                 'Authorization' => 'Bearer ' . $api_key,
@@ -32,6 +44,7 @@ class CAI_AI {
         ]);
 
         if (is_wp_error($response)){
+ codex/handle-errors-in-cai_ai-integration
             return new WP_Error(
                 'cai_http_error',
                 __('Failed to contact OpenAI.', 'content-architect-ai'),
@@ -74,6 +87,101 @@ class CAI_AI {
                 'body' => $body_snippet,
             ]
         );
+
+            return $response;
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        $decoded = json_decode(wp_remote_retrieve_body($response), true);
+        if ($code < 200 || $code >= 300){
+            $message = !empty($decoded['error']['message']) ? $decoded['error']['message'] : 'Unexpected response from OpenAI';
+            return new WP_Error('api_http_error', $message);
+        }
+
+        if (empty($decoded['choices'][0]['message']['content'])){
+            return new WP_Error('api_missing_content', 'Empty response from OpenAI');
+        }
+
+        $content = $decoded['choices'][0]['message']['content'];
+        if (!is_string($content)){
+            return new WP_Error('api_invalid_content', 'Invalid content type returned from OpenAI');
+        }
+
+        $content = trim($content);
+        if ($expect_json){
+            $content = self::normalize_json_response($content);
+        }
+
+        return $content;
+    }
+
+    public static function normalize_json_response($text){
+        if (!is_string($text)) return '';
+
+        $normalized = trim($text);
+
+        if (preg_match('/^```(?:json)?\s*([\s\S]*?)```/i', $normalized, $matches)){
+            $normalized = $matches[1];
+        }
+
+        $normalized = trim($normalized);
+
+        if (stripos($normalized, 'json') === 0){
+            $candidate = ltrim(substr($normalized, 4));
+            if ($candidate !== '' && ($candidate[0] === '{' || $candidate[0] === '[')){
+                $normalized = $candidate;
+            }
+        }
+
+        $normalized = trim($normalized);
+
+        $firstBrace = strpos($normalized, '{');
+        $firstBracket = strpos($normalized, '[');
+        $start = false;
+        if ($firstBrace !== false && $firstBracket !== false){
+            $start = min($firstBrace, $firstBracket);
+        } elseif ($firstBrace !== false){
+            $start = $firstBrace;
+        } elseif ($firstBracket !== false){
+            $start = $firstBracket;
+        }
+        if ($start !== false && $start > 0){
+            $normalized = substr($normalized, $start);
+        }
+
+        $endBrace = strrpos($normalized, '}');
+        $endBracket = strrpos($normalized, ']');
+        $end = false;
+        if ($endBrace !== false && $endBracket !== false){
+            $end = max($endBrace, $endBracket);
+        } elseif ($endBrace !== false){
+            $end = $endBrace;
+        } elseif ($endBracket !== false){
+            $end = $endBracket;
+        }
+        if ($end !== false){
+            $normalized = substr($normalized, 0, $end + 1);
+        }
+
+        return trim($normalized);
+    }
+
+    public static function parse_json_response($text){
+        $normalized = self::normalize_json_response($text);
+        if ($normalized === ''){
+            return new WP_Error('empty_json', 'Empty AI JSON response');
+        }
+
+        $data = json_decode($normalized, true);
+        if (json_last_error() !== JSON_ERROR_NONE){
+            return new WP_Error('json_decode_error', 'Failed to decode AI JSON: ' . json_last_error_msg(), ['raw'=>$normalized]);
+        }
+
+        return [
+            'data' => $data,
+            'raw'  => $normalized,
+        ];
+ main
     }
 
     public static function embedding($text){

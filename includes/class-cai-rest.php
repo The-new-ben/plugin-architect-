@@ -41,6 +41,7 @@ if (!current_user_can('edit_posts')) wp_send_json_error('forbidden', 403);
         if (!$pid) wp_send_json_error('missing id', 400);
         $post = get_post($pid);
         $prompt = 'Create an SEO title (<=60 chars) and a meta description (<=155 chars) in Hebrew for the following article. Return JSON with keys title, description. Title: "'.get_the_title($pid).'" Content: ' . wp_strip_all_tags($post->post_content);
+ codex/handle-errors-in-cai_ai-integration
         $json = CAI_AI::chat($prompt, 'You are a world-class SEO copywriter. Return JSON only.', 200);
         if (is_wp_error($json)){
             $payload = ['message'=>$json->get_error_message()];
@@ -66,13 +67,30 @@ if (!current_user_can('edit_posts')) wp_send_json_error('forbidden', 403);
             wp_send_json_error($payload, 500);
         }
         $data = json_decode($json, true);
+
+        $json = CAI_AI::chat($prompt, 'You are a world-class SEO copywriter. Return JSON only.', 200, true);
+        if (is_wp_error($json)){
+            wp_send_json_error($json->get_error_message());
+        }
+
+        $parsed = CAI_AI::parse_json_response($json);
+        if (is_wp_error($parsed)){
+            $data = $parsed->get_error_data();
+            wp_send_json_error([
+                'message' => $parsed->get_error_message(),
+                'raw'     => $data['raw'] ?? $json,
+            ]);
+        }
+
+        $data = $parsed['data'];
+ main
         if (is_array($data)){
             update_post_meta($pid, '_cai_meta_title', sanitize_text_field($data['title'] ?? ''));
             update_post_meta($pid, '_cai_meta_desc', sanitize_textarea_field($data['description'] ?? ''));
             wp_send_json_success($data);
-        } else {
-            wp_send_json_error('bad ai response');
         }
+
+        wp_send_json_error('bad ai response');
     }
 
     public function ajax_reindex(){

@@ -36,6 +36,7 @@ class CAI_Clustering {
             wp_set_object_terms($post_id, intval($best_term_id), 'topic_cluster', false);
         } else {
             // ask AI to propose a cluster name
+ codex/handle-errors-in-cai_ai-integration
             $name_response = CAI_AI::chat('Suggest a 2-4 word topic cluster name in Hebrew for this content: '.get_the_title($post_id));
             if (is_wp_error($name_response)){
                 $details = $name_response->get_error_data();
@@ -65,6 +66,11 @@ class CAI_Clustering {
                 $name = 'אשכול חדש';
             } else {
                 $name = $name_response;
+
+            $name = CAI_AI::chat('Suggest a 2-4 word topic cluster name in Hebrew for this content: '.get_the_title($post_id));
+            if (is_wp_error($name)){
+                $name = '';
+ main
             }
             $name = sanitize_text_field($name ?: 'אשכול חדש');
             $term = wp_insert_term($name, 'topic_cluster');

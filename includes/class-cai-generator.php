@@ -165,6 +165,9 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
                 . wp_json_encode($site, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)
                 . ' החזר JSON בלבד במבנה: { "clusters":[{"name":"","description":"","keywords":[""],"ideas":[{"title":"","slug":"","target_keyword":"","summary":""}]}], "categories":["",""] }';
         $json = CAI_AI::chat($prompt, 'Return compact JSON only. Language: Hebrew.', 600);
+        if (is_wp_error($json)){
+            wp_send_json_error($this->format_error_payload($json), 500);
+        }
         if (!$json) wp_send_json_error('no ai');
         set_transient('cai_architecture_plan', $json, 12*HOUR_IN_SECONDS);
         wp_send_json_success(['plan'=>$json]);
@@ -242,6 +245,9 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
                     'target_keyword' => $idea['target_keyword'] ?? '',
                     'cluster' => $cluster_name,
                 ]);
+                if (is_wp_error($pid)){
+                    wp_send_json_error($this->format_error_payload($pid), 500);
+                }
                 if ($pid) { $post_ids[] = $pid; $count++; }
             }
         }
@@ -255,6 +261,9 @@ if (!current_user_can('edit_posts')) wp_send_json_error('forbidden', 403);
         $cluster = sanitize_text_field($_POST['cluster'] ?? '');
         if (!$topic) wp_send_json_error('missing topic');
         $pid = $this->generate_single_post(['title'=>$topic, 'cluster'=>$cluster]);
+        if (is_wp_error($pid)){
+            wp_send_json_error($this->format_error_payload($pid), 500);
+        }
         if ($pid) wp_send_json_success(['post_id'=>$pid, 'edit_link'=>get_edit_post_link($pid, '')]);
         wp_send_json_error('failed');
     }
@@ -301,8 +310,21 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
                 .' כתוב בעברית תקינה, טון מקצועי, בלי סלנג, ושמור על אורך 800-1400 מילים.';
 
         $json = CAI_AI::chat($prompt, 'Return valid JSON only. Language: Hebrew.', 1200);
+        if (is_wp_error($json)){
+            return $json;
+        }
+        if (!$json){
+            return new WP_Error('cai_empty_response', __('Empty response from OpenAI.', 'content-architect-ai'));
+        }
+
         $data = json_decode($json, true);
-        if (!is_array($data) || empty($data['content_html'])) return 0;
+        if (!is_array($data) || empty($data['content_html'])){
+            return new WP_Error(
+                'cai_invalid_response',
+                __('Invalid AI response format.', 'content-architect-ai'),
+                ['body'=>$this->truncate_text($json)]
+            );
+        }
 
         $title = sanitize_text_field($data['title'] ?: $topic);
         $content = wp_kses_post($data['content_html']);
@@ -319,7 +341,7 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
             'post_type'    => 'post',
         ];
         $pid = wp_insert_post($postarr, true);
-        if (is_wp_error($pid)) return 0;
+        if (is_wp_error($pid)) return $pid;
 
         if (!empty($kw)) update_post_meta($pid, '_cai_target_keyword', $kw);
         if (!empty($data['meta_title'])) update_post_meta($pid, '_cai_meta_title', sanitize_text_field($data['meta_title']));
@@ -359,6 +381,21 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
                 'summary'=>$t['summary'] ?? '',
                 'cluster'=>$t['cluster'] ?? ''
             ]);
+            if (is_wp_error($pid)){
+                $details = $pid->get_error_data();
+                if (!empty($details) && !is_scalar($details)){
+                    $details = wp_json_encode($details);
+                }
+                if (is_string($details)){
+                    $details = $this->truncate_text($details);
+                }
+                $message = 'CAI cron generate error: '.$pid->get_error_message();
+                if (!empty($details)){
+                    $message .= ' | '.$details;
+                }
+                error_log($message);
+                continue;
+            }
             if ($pid) $created++;
         }
     }
@@ -397,7 +434,56 @@ if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
                 .'פורמט JSON בלבד: [{"title":"","summary":"","cluster":""}]'
                 .' נתונים: ' . wp_json_encode($items, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
         $json = CAI_AI::chat($prompt, 'Return JSON array only. Language: Hebrew.', 800);
+        if (is_wp_error($json)){
+            $details = $json->get_error_data();
+            if (!empty($details) && !is_scalar($details)){
+                $details = wp_json_encode($details);
+            }
+            if (is_string($details)){
+                $details = $this->truncate_text($details);
+            }
+            $message = 'CAI discover topics error: '.$json->get_error_message();
+            if (!empty($details)){
+                $message .= ' | '.$details;
+            }
+            error_log($message);
+            return [];
+        }
         $arr = json_decode($json, true);
         return is_array($arr) ? $arr : [];
+    }
+
+    private function format_error_payload($error){
+        if (!$error instanceof WP_Error){
+            return $error;
+        }
+        $payload = ['message'=>$error->get_error_message()];
+        $details = $error->get_error_data();
+        if (!empty($details)){
+            if (is_string($details)){
+                $details = $this->truncate_text($details);
+            }
+            $payload['details'] = $details;
+        }
+        return $payload;
+    }
+
+    private function truncate_text($text, $length = 400){
+        if (!is_string($text)){
+            return $text;
+        }
+        $snippet = '';
+        if (function_exists('mb_substr')){
+            $snippet = mb_substr($text, 0, $length);
+            if ((function_exists('mb_strlen') && mb_strlen($text) > $length) || strlen($text) > $length){
+                $snippet .= '…';
+            }
+        } else {
+            $snippet = substr($text, 0, $length);
+            if (strlen($text) > $length){
+                $snippet .= '…';
+            }
+        }
+        return $snippet;
     }
 }

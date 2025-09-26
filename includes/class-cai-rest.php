@@ -42,6 +42,29 @@ if (!current_user_can('edit_posts')) wp_send_json_error('forbidden', 403);
         $post = get_post($pid);
         $prompt = 'Create an SEO title (<=60 chars) and a meta description (<=155 chars) in Hebrew for the following article. Return JSON with keys title, description. Title: "'.get_the_title($pid).'" Content: ' . wp_strip_all_tags($post->post_content);
         $json = CAI_AI::chat($prompt, 'You are a world-class SEO copywriter. Return JSON only.', 200);
+        if (is_wp_error($json)){
+            $payload = ['message'=>$json->get_error_message()];
+            $details = $json->get_error_data();
+            if (!empty($details)){
+                if (is_string($details)){
+                    $original_details = $details;
+                    if (function_exists('mb_substr')){
+                        $details = mb_substr($original_details, 0, 400);
+                        $length = function_exists('mb_strlen') ? mb_strlen($original_details) : strlen($original_details);
+                        if ($length > 400){
+                            $details .= '…';
+                        }
+                    } else {
+                        $details = substr($original_details, 0, 400);
+                        if (strlen($original_details) > 400){
+                            $details .= '…';
+                        }
+                    }
+                }
+                $payload['details'] = $details;
+            }
+            wp_send_json_error($payload, 500);
+        }
         $data = json_decode($json, true);
         if (is_array($data)){
             update_post_meta($pid, '_cai_meta_title', sanitize_text_field($data['title'] ?? ''));

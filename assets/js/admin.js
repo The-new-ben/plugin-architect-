@@ -1,7 +1,30 @@
 /* global caiVars */
-// placeholder
+function caiExtractError(resp, fallback){
+    var message = fallback || 'שגיאה';
+    if (!resp){
+        return message;
+    }
+    var data = typeof resp.data !== 'undefined' ? resp.data : null;
+    if (typeof data === 'string' && data){
+        message = data;
+    } else if (data && typeof data === 'object'){
+        if (data.message){
+            message = data.message;
+        }
+        if (data.details){
+            var details = typeof data.details === 'string' ? data.details : JSON.stringify(data.details);
+            if (details){
+                message += ' (' + details + ')';
+            }
+        }
+    } else if (resp.message){
+        message = resp.message;
+    }
+    return message;
+}
+
 jQuery(function($){
-    // Generation page
+
     $('#cai-analyze-site').on('click', function(e){
         e.preventDefault();
         const $btn = $(this);
@@ -10,7 +33,7 @@ jQuery(function($){
             if(resp && resp.success && resp.data && resp.data.plan){
                 $('#cai-plan').val(resp.data.plan);
             } else {
-                alert('שגיאה בניתוח האתר');
+                alert(caiExtractError(resp, 'שגיאה בניתוח האתר'));
             }
             $btn.prop('disabled', false).text('נתח אתר והצע אשכולות');
         });
@@ -25,7 +48,7 @@ jQuery(function($){
             if(resp && resp.success){
                 alert('נוצרו/עודכנו אשכולות/קטגוריות: ' + JSON.stringify(resp.data.created));
             }else{
-                alert('שגיאה ביישום הארכיטקטורה');
+                alert(caiExtractError(resp, 'שגיאה ביישום הארכיטקטורה'));
             }
             $btn.prop('disabled', false).text('יישם ארכיטקטורה והכן קטגוריות');
         });
@@ -41,7 +64,7 @@ jQuery(function($){
             if(resp && resp.success){
                 $('#cai-generate-log').prepend('<div>נוצרו ' + resp.data.created + ' פוסטים: ' + (resp.data.ids||[]).join(', ') + '</div>');
             } else {
-                $('#cai-generate-log').prepend('<div>כשלון בהרצה</div>');
+                $('#cai-generate-log').prepend('<div>כשלון בהרצה: ' + caiExtractError(resp, '') + '</div>');
             }
             $btn.prop('disabled', false).text('צור עכשיו');
         });
@@ -57,7 +80,7 @@ jQuery(function($){
             if(resp && resp.success){
                 $('#cai-generate-log').prepend('<div>נוצר פוסט #' + resp.data.post_id + '</div>');
             } else {
-                $('#cai-generate-log').prepend('<div>כשלון ביצירת פוסט</div>');
+                $('#cai-generate-log').prepend('<div>כשלון ביצירת פוסט: ' + caiExtractError(resp, '') + '</div>');
             }
             $btn.prop('disabled', false).text('יצירת פוסט יחיד');
         });
@@ -73,7 +96,7 @@ jQuery(function($){
             if(resp && resp.success){
                 $('#cai-test-result').text('✓ חיבור תקין ('+(resp.data.ok||'OK')+')');
             } else {
-                $('#cai-test-result').text('✗ שגיאה: '+ (resp && resp.data ? resp.data : ''));
+                $('#cai-test-result').text('✗ שגיאה: '+ caiExtractError(resp, ''));
             }
             $btn.prop('disabled', false).text('בדוק חיבור');
         });

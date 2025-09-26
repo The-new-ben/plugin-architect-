@@ -1,0 +1,30 @@
+
+/* Content Architect AI – Frontend Enhancements */
+:root{ --cai-accent: #5b7cff; --cai-muted:#6b7280; --cai-bg:#f8fafc; }
+nav.cai-breadcrumbs{font-size:14px; margin:8px 0 16px; }
+nav.cai-breadcrumbs ol{display:flex; flex-wrap:wrap; gap:8px; padding:0; margin:0; list-style:none}
+nav.cai-breadcrumbs li a{ text-decoration:none; }
+nav.cai-breadcrumbs li:last-child{ color:#111827; font-weight:600 }
+
+.cai-related{border-top:1px solid #e5e7eb; padding-top:12px; margin-top:24px}
+.cai-related h3{font-size:18px; margin:0 0 8px}
+.cai-related ul{margin:0; padding-left:18px}
+.cai-related li{margin:4px 0}
+
+.cai-home{display:grid; gap:24px}
+.cai-home-section{background:var(--cai-bg); border:1px solid #e5e7eb; border-radius:12px; padding:16px}
+.cai-home-section h2{margin-top:0}
+
+.cai-toc{position:relative; padding:12px 16px; background:#fff; border:1px solid #e5e7eb; border-radius:12px}
+.cai-toc h3{margin:0 0 8px; font-size:16px}
+.cai-toc ol{margin:0; padding-left:18px}
+.cai-toc.sticky{position:sticky; top:96px}
+
+.cai-author-box{display:flex; gap:12px; padding:16px; border:1px solid #e5e7eb; border-radius:12px; background:#fff; margin:16px 0}
+.cai-author-avatar{width:64px; height:64px; border-radius:50%}
+.cai-author-name{font-weight:700}
+.cai-share{display:flex; gap:8px; margin:16px 0}
+.cai-btn{display:inline-block; padding:8px 12px; border:1px solid #e5e7eb; border-radius:10px; text-decoration:none}
+.cai-progress{position:fixed; top:0; left:0; right:0; height:3px; background:transparent; transform-origin:0 0; z-index:9999}
+.cai-progress::before{content:''; position:absolute; left:0; top:0; bottom:0; width:100%; background:linear-gradient(90deg,#5b7cff,#00d4ff); transform-origin:0 0; transform:scaleX(1)}
+.cai-progress{background:rgba(0,0,0,0.05); transform:scaleX(0)}

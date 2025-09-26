@@ -29,12 +29,13 @@ class CAI_Admin {
         register_setting('cai_settings_group', 'cai_settings');
 
         add_settings_section('cai_api', __('OpenAI API', 'content-architect-ai'), function(){
-            echo '<p>'.esc_html__('חיבור ל-OpenAI לצורך עיבוד שפה, סיווג וקיבוץ.', 'content-architect-ai').'</p>';
+            echo '<p>'.esc_html__('חיבור ל-OpenAI לצורך עיבוד שפה, סיווג וקיבוץ. הזינו כאן את מפתח ה-API או הגדירו את הקבוע CAI_OPENAI_API_KEY בקובץ ההגדרות של האתר.', 'content-architect-ai').'</p>';
         }, 'cai_settings');
 
         add_settings_field('openai_api_key', __('OpenAI API Key', 'content-architect-ai'), function(){
             $opt = get_option('cai_settings', []);
             printf('<input type="password" name="cai_settings[openai_api_key]" value="%s" class="regular-text" />', esc_attr($opt['openai_api_key'] ?? ''));
+            echo '<p class="description">'.esc_html__('המפתח נשמר כאן באופן מאובטח. ניתן גם להגדיר קבוע CAI_OPENAI_API_KEY בקובץ wp-config.php.', 'content-architect-ai').'</p>';
         }, 'cai_settings', 'cai_api');
 
         add_settings_field('chat_model', __('דגם לטקסט', 'content-architect-ai'), function(){

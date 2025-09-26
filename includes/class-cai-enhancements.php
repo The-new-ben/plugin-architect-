@@ -3,6 +3,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class CAI_Enhancements {
 
+    private $filtered_content;
+
     public function __construct(){
         add_shortcode('cai_toc', [$this,'toc']);
         add_shortcode('cai_reading_time', [$this,'reading_time']);
@@ -103,8 +105,19 @@ class CAI_Enhancements {
 
         // replace content with injected anchors
         remove_filter('the_content', [$this,'auto_append_toc'], 1);
-        add_filter('the_content', function($content) use ($html){ return $html; }, 1);
+        $this->filtered_content = $html;
+        add_filter('the_content', [$this,'replace_toc_content'], 99);
         return $out;
+    }
+
+    public function replace_toc_content($content){
+        if ($this->filtered_content === null) {
+            return $content;
+        }
+        $updated = $this->filtered_content;
+        $this->filtered_content = null;
+        remove_filter('the_content', [$this,'replace_toc_content'], 99);
+        return $updated;
     }
 
     public function reading_time($atts = []){
